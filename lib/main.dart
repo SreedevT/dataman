@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import './home.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -41,7 +46,11 @@ class MyApp extends StatelessWidget {
           padding: MaterialStateProperty.all(const EdgeInsets.all(10)),
           iconSize: MaterialStateProperty.all(75),
           textStyle: MaterialStateProperty.all(
-              TextStyle(color: Colors.purple[200], fontSize: 14, fontWeight: FontWeight.bold),),
+            TextStyle(
+                color: Colors.purple[200],
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
+          ),
         )),
       ),
       home: const HomePage(),

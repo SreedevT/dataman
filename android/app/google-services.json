@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "123697059626",
+    "project_id": "dataman-56afb",
+    "storage_bucket": "dataman-56afb.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123697059626:android:3767de7056d6d033e9f053",
+        "android_client_info": {
+          "package_name": "com.example.dataman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCev5cihvUPeEv5FHJlPuj7G3LTsoIkaZs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
