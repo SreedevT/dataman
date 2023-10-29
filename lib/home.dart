@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:dataman/utils/shared_pref.dart';
+import 'package:dataman/utils/traffic_api.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -13,9 +16,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // State Variables
   String name = "";
   bool _isRecording = false;
   String location = "";
+  Position? position;
+  int selectedIntensity = 0;
+
+  // Controllers
+  TextEditingController locationController = TextEditingController();
 
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
@@ -60,7 +69,7 @@ class _HomePageState extends State<HomePage> {
             offstage: _isRecording,
             child: recordButton(),
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
             "The coordinates are $location",
             style: TextStyle(color: Colors.grey[100]),
@@ -78,11 +87,16 @@ class _HomePageState extends State<HomePage> {
             await loc.Location().getAddressFromLatLng(position!) ?? "";
 
         setState(() {
+          this.position = position;
           location = address;
-           _isRecording = true;
+          locationController.text = address;
+          _isRecording = true;
         });
 
         timerController.start();
+
+        // ignore: use_build_context_synchronously
+        _showBottomSheet(context);
       },
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
@@ -180,6 +194,124 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       },
+    );
+  }
+
+  void _showBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: true,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          return SingleChildScrollView(
+            child: AnimatedPadding(
+              padding: MediaQuery.of(context).viewInsets,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.decelerate,
+              child: Container(
+                height: 300,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Display the latitude and longitude in one row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Text(
+                            'Latitude: ${position!.latitude.toStringAsFixed(3)}'),
+                        Text(
+                            'Longitude: ${position!.longitude.toStringAsFixed(3)}'),
+                      ],
+                    ),
+                    // Display the location name in another row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: locationController,
+                            decoration: InputDecoration(
+                              hintText: 'Location',
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                            ),
+                            style: TextStyle(color: Colors.grey[100]),
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Display the option to pick from 4 colors which represent the traffic congestion
+                    Column(
+                      children: [
+                        Text(
+                          'Select the traffic intensity',
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Call the function with different colors and tooltips
+                            _colorIcon(
+                                Colors.green, 'Low traffic', 1, setSheetState),
+                            _colorIcon(Colors.yellow, 'Moderate traffic', 2,
+                                setSheetState),
+                            _colorIcon(Colors.orange, 'High traffic', 3,
+                                setSheetState),
+                            _colorIcon(
+                                Colors.red, 'Severe traffic', 4, setSheetState),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: TextButton(
+                            onPressed: () {},
+                            child: Text("Submit", style: TextStyle(color: Colors.purple[300], fontSize: 16, fontWeight: FontWeight.bold),),
+                          ),
+                        )
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  // A function that returns a colored circle icon with a tooltip
+  Widget _colorIcon(
+      Color color, String tooltip, int intensity, StateSetter setSheetState) {
+    return GestureDetector(
+      onTap: () {
+        log('The color is $color and the intensity is $intensity');
+        setSheetState(() {
+          selectedIntensity = intensity;
+        });
+      },
+      child: Tooltip(
+        message: tooltip,
+        child: CircleAvatar(
+          backgroundColor: color,
+          radius: intensity == selectedIntensity ? 18 : 15,
+          child: intensity == selectedIntensity
+              ? const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                )
+              : null,
+        ),
+      ),
     );
   }
 }
