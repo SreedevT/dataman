@@ -1,6 +1,9 @@
+import 'package:dataman/utils/shared_pref.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:geolocator/geolocator.dart';
+import 'utils/location.dart' as loc;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,6 +15,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String name = "";
   bool _isRecording = false;
+  String location = "";
 
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
@@ -28,7 +32,10 @@ class _HomePageState extends State<HomePage> {
           centerTitle: true,
           backgroundColor: Colors.grey[900],
           actions: [
-            IconButton(icon: const Icon(Icons.history), onPressed: () {},)
+            IconButton(
+              icon: const Icon(Icons.history),
+              onPressed: () {},
+            )
           ],
           actionsIconTheme: IconThemeData(color: Colors.grey[100]),
         ),
@@ -53,9 +60,11 @@ class _HomePageState extends State<HomePage> {
             offstage: _isRecording,
             child: recordButton(),
           ),
-          // countDown(),
-          // const SizedBox(height: 20),
-          // recordButton(),
+          SizedBox(height: 20),
+          Text(
+            "The coordinates are $location",
+            style: TextStyle(color: Colors.grey[100]),
+          ),
         ],
       ),
     );
@@ -63,11 +72,17 @@ class _HomePageState extends State<HomePage> {
 
   ElevatedButton recordButton() {
     return ElevatedButton(
-      onPressed: () {
-        timerController.start();
+      onPressed: () async {
+        Position? position = await loc.Location().getCurrentPosition();
+        String address =
+            await loc.Location().getAddressFromLatLng(position!) ?? "";
+
         setState(() {
-          _isRecording = true;
+          location = address;
+           _isRecording = true;
         });
+
+        timerController.start();
       },
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
@@ -108,7 +123,7 @@ class _HomePageState extends State<HomePage> {
 
         Fluttertoast.showToast(
           msg: 'Recording is complete', // Todo Maybe add filename in msg
-          toastLength: Toast.LENGTH_SHORT, 
+          toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.SNACKBAR,
           backgroundColor: Colors.grey,
           textColor: Colors.white,
@@ -141,6 +156,8 @@ class _HomePageState extends State<HomePage> {
                 setState(() {
                   name = nameController.text;
                 });
+                // Save the name in the shared preferences
+                storeValue('name', name);
                 // Close the dialog box
                 Navigator.pop(context);
               },
