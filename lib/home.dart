@@ -1,10 +1,8 @@
 import 'dart:developer';
-
+import 'package:dataman/utils/recorder.dart';
 import 'package:dataman/utils/shared_pref.dart';
-import 'package:dataman/utils/traffic_api.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'utils/location.dart' as loc;
 
@@ -17,7 +15,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // State Variables
-  String name = "";
+  String name = "Default";
   bool _isRecording = false;
   String location = "";
   Position? position;
@@ -28,6 +26,30 @@ class _HomePageState extends State<HomePage> {
 
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
+
+  final RecordController recordController = RecordController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Get the name from the shared preferences
+    getValue('name').then((value) {
+      setState(() {
+        name = value;
+      });
+      nameController.text = value;
+    });
+  }
+
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    nameController.dispose();
+    locationController.dispose();
+    recordController.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +104,8 @@ class _HomePageState extends State<HomePage> {
   ElevatedButton recordButton() {
     return ElevatedButton(
       onPressed: () async {
+        timerController.start();
+
         Position? position = await loc.Location().getCurrentPosition();
         String address =
             await loc.Location().getAddressFromLatLng(position!) ?? "";
@@ -90,10 +114,7 @@ class _HomePageState extends State<HomePage> {
           this.position = position;
           location = address;
           locationController.text = address;
-          _isRecording = true;
         });
-
-        timerController.start();
 
         // ignore: use_build_context_synchronously
         _showBottomSheet(context);
@@ -115,7 +136,7 @@ class _HomePageState extends State<HomePage> {
     return CircularCountDownTimer(
       width: 110,
       height: 110,
-      duration: 3, // Set the duration to 15 seconds
+      duration: 3, // TODO Set the duration to 15 seconds
       fillColor: Colors.blue,
       ringColor: Colors.white,
       controller: timerController,
@@ -129,19 +150,20 @@ class _HomePageState extends State<HomePage> {
       autoStart: false,
       isReverse: true,
       isReverseAnimation: true,
-      onStart: () {},
+      onStart: () {
+        log('The timer has started');
+        setState(() {
+          _isRecording = true;
+        });
+        recordController.startRecording();
+      },
       onComplete: () {
         setState(() {
           _isRecording = false;
+          selectedIntensity = 0;
         });
 
-        Fluttertoast.showToast(
-          msg: 'Recording is complete', // Todo Maybe add filename in msg
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.SNACKBAR,
-          backgroundColor: Colors.grey,
-          textColor: Colors.white,
-        );
+        recordController.stopRecording();
       },
     );
   }
@@ -273,8 +295,17 @@ class _HomePageState extends State<HomePage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: TextButton(
-                            onPressed: () {},
-                            child: Text("Submit", style: TextStyle(color: Colors.purple[300], fontSize: 16, fontWeight: FontWeight.bold),),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              log("Submit button pressed");
+                            },
+                            child: Text(
+                              "Submit",
+                              style: TextStyle(
+                                  color: Colors.purple[300],
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold),
+                            ),
                           ),
                         )
                       ],

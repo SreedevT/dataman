@@ -35,7 +35,7 @@ class Location {
       _currentAddress =
          '${place.street}, ${place.subLocality}, ${place.subAdministrativeArea}, ${place.postalCode}';
   }).catchError((e) {
-    debugPrint(e);
+    debugPrint("Error here $e");
   });
 
   return _currentAddress;
