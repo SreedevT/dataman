@@ -1,6 +1,7 @@
 import 'dart:developer';
-import 'package:dataman/utils/recorder.dart';
-import 'package:dataman/utils/shared_pref.dart';
+import 'utils/recorder.dart';
+import 'utils/shared_pref.dart';
+import 'widgets/color_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:geolocator/geolocator.dart';
@@ -138,40 +139,53 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  CircularCountDownTimer countDown() {
-    return CircularCountDownTimer(
-      key: ValueKey(duration),
-      width: 110,
-      height: 110,
-      duration: duration, // TODO Set the duration to 15 seconds
-      fillColor: Colors.blue,
-      ringColor: Colors.white,
-      controller: timerController,
-      textStyle: TextStyle(
-        fontSize: 25,
-        color: Colors.grey[100],
-        fontWeight: FontWeight.bold,
-      ),
-      textFormat: CountdownTextFormat.S,
-      isTimerTextShown: true, // Show the timer text
-      autoStart: false,
-      isReverse: true,
-      isReverseAnimation: true,
-      onStart: () {
-        log('The timer has started with duration $duration');
-        setState(() {
-          _isRecording = true;
-        });
-        recordController.startRecording();
-      },
-      onComplete: () {
-        setState(() {
-          _isRecording = false;
-          selectedIntensity = 0;
-        });
+  Widget countDown() {
+    return SizedBox(
+      width: 280,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularCountDownTimer(
+            key: ValueKey(duration),
+            width: 110,
+            height: 110,
+            duration: duration,
+            fillColor: Colors.blue,
+            ringColor: Colors.white,
+            controller: timerController,
+            textStyle: TextStyle(
+              fontSize: 25,
+              color: Colors.grey[100],
+              fontWeight: FontWeight.bold,
+            ),
+            textFormat: CountdownTextFormat.S,
+            isTimerTextShown: true, // Show the timer text
+            autoStart: false,
+            isReverse: true,
+            isReverseAnimation: true,
+            onStart: () {
+              log('The timer has started with duration $duration');
+              setState(() {
+                _isRecording = true;
+              });
+              recordController.startRecording();
+            },
+            onComplete: () {
+              setState(() {
+                _isRecording = false;
+                selectedIntensity = 0;
+              });
 
-        recordController.stopRecording();
-      },
+              recordController.stopRecording();
+            },
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: stopButton(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -186,8 +200,6 @@ class _HomePageState extends State<HomePage> {
             labelText: 'Duration',
             hintText: 'Duration',
             hintStyle: TextStyle(color: Colors.grey[400]),
-            // filled: true,
-            // fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: const BorderRadius.all(Radius.circular(
                   20)), // This makes the TextField have rounded corners
@@ -204,6 +216,28 @@ class _HomePageState extends State<HomePage> {
             });
           },
         ),
+      ),
+    );
+  }
+
+  Widget stopButton() {
+    return ElevatedButton(
+      onPressed: () {
+        recordController.stopRecording();
+        timerController.reset();
+        setState(() {
+          _isRecording = false;
+        });
+      },
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
+        shape: MaterialStateProperty.all(const CircleBorder()),
+        padding: MaterialStateProperty.all(const EdgeInsets.all(20)),
+        iconSize: MaterialStateProperty.all(35),
+      ),
+      child: const Icon(
+        Icons.stop,
+        color: Colors.red,
       ),
     );
   }
@@ -317,14 +351,26 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             // Call the function with different colors and tooltips
-                            _colorIcon(
-                                Colors.green, 'Low traffic', 1, setSheetState),
-                            _colorIcon(Colors.yellow, 'Moderate traffic', 2,
-                                setSheetState),
-                            _colorIcon(Colors.orange, 'High traffic', 3,
-                                setSheetState),
-                            _colorIcon(
-                                Colors.red, 'Severe traffic', 4, setSheetState),
+                            colorIcon(Colors.green, 'Low traffic',
+                                selectedIntensity, 1,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 1;
+                                    })),
+                            colorIcon(Colors.yellow, 'Moderate traffic',
+                                selectedIntensity, 2,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 2;
+                                    })),
+                            colorIcon(Colors.orange, 'High traffic',
+                                selectedIntensity, 3,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 3;
+                                    })),
+                            colorIcon(Colors.red, 'Severe traffic',
+                                selectedIntensity, 4,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 4;
+                                    })),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -357,32 +403,6 @@ class _HomePageState extends State<HomePage> {
           );
         });
       },
-    );
-  }
-
-  // A function that returns a colored circle icon with a tooltip
-  Widget _colorIcon(
-      Color color, String tooltip, int intensity, StateSetter setSheetState) {
-    return GestureDetector(
-      onTap: () {
-        log('The color is $color and the intensity is $intensity');
-        setSheetState(() {
-          selectedIntensity = intensity;
-        });
-      },
-      child: Tooltip(
-        message: tooltip,
-        child: CircleAvatar(
-          backgroundColor: color,
-          radius: intensity == selectedIntensity ? 18 : 15,
-          child: intensity == selectedIntensity
-              ? const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                )
-              : null,
-        ),
-      ),
     );
   }
 }
