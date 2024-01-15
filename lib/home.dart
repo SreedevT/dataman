@@ -16,6 +16,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // State Variables
   String name = "Default";
+  int duration = 15;
   bool _isRecording = false;
   String location = "";
   Position? position;
@@ -70,7 +71,12 @@ class _HomePageState extends State<HomePage> {
           ],
           actionsIconTheme: IconThemeData(color: Colors.grey[100]),
         ),
-        body: recordingIndicator(),
+        body: Stack(
+          children: [
+            durationBox(),
+            recordingIndicator(),
+          ],
+        ),
         floatingActionButton: FloatingActionButton(
           onPressed: showNameDialog,
           backgroundColor: Colors.red,
@@ -134,9 +140,10 @@ class _HomePageState extends State<HomePage> {
 
   CircularCountDownTimer countDown() {
     return CircularCountDownTimer(
+      key: ValueKey(duration),
       width: 110,
       height: 110,
-      duration: 3, // TODO Set the duration to 15 seconds
+      duration: duration, // TODO Set the duration to 15 seconds
       fillColor: Colors.blue,
       ringColor: Colors.white,
       controller: timerController,
@@ -151,7 +158,7 @@ class _HomePageState extends State<HomePage> {
       isReverse: true,
       isReverseAnimation: true,
       onStart: () {
-        log('The timer has started');
+        log('The timer has started with duration $duration');
         setState(() {
           _isRecording = true;
         });
@@ -165,6 +172,39 @@ class _HomePageState extends State<HomePage> {
 
         recordController.stopRecording();
       },
+    );
+  }
+
+  Widget durationBox() {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        margin: const EdgeInsets.only(top: 20),
+        width: 110, // Set this to the width of your record icon
+        child: TextField(
+          decoration: InputDecoration(
+            labelText: 'Duration',
+            hintText: 'Duration',
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            // filled: true,
+            // fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(Radius.circular(
+                  20)), // This makes the TextField have rounded corners
+              borderSide: BorderSide(color: Colors.grey[100]!),
+            ),
+          ),
+          style: TextStyle(color: Colors.grey[100]),
+          enabled: !_isRecording,
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            setState(() {
+              duration = int.parse(value);
+              log('The duration is $duration');
+            });
+          },
+        ),
+      ),
     );
   }
 
