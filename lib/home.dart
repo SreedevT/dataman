@@ -151,7 +151,6 @@ class _HomePageState extends State<HomePage> {
           bottomSheetCompleter = Completer<void>();
 
           // Reset the selected intensity after sending data.
-          // Intensity is also used to check if the metadata has been filled
           setState(() {
             selectedIntensity = 0;
           });
