@@ -1,3 +1,4 @@
+import 'package:universal_html/html.dart';
 import 'dart:io';
 import 'package:dataman/utils/shared_pref.dart';
 import 'package:flutter/foundation.dart';
@@ -27,7 +28,7 @@ class RecordController {
     });
   }
 
-  Future<void> startRecording() async {
+  void startRecording() async {
     // TODO: Maybe add support for multiple platforms or better compatibility in android
 
     if (await record.hasPermission()) {
@@ -36,7 +37,7 @@ class RecordController {
 
       // Start recording to file
       await record.start(const RecordConfig(encoder: AudioEncoder.wav),
-          path: '${directoryPath.path}/${name}_$unixTime.wav');
+          path: '${directoryPath.path}/${unixTime}_$name.wav');
     }
   }
 
@@ -57,7 +58,7 @@ class RecordController {
     );
 
     log("Recording is complete $path");
-    return '${name}_$unixTime';
+    return '${unixTime}_$name';
   }
 
   void dispose() {
@@ -67,7 +68,7 @@ class RecordController {
   void saveRecordingWeb(String url) {
     // Create a link with the Blob URL
     AnchorElement(href: url)
-      ..setAttribute('download', '${name}_$unixTime.wav')
+      ..setAttribute('download', '${unixTime}_$name.wav')
       ..click();
 
     // Revoke the Blob URL

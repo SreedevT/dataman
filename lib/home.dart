@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -21,7 +22,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // Private Variables
   String _fileName = "";
-  bool _dataSent = false;
+  // completers can hold futures.
+  // When a specific event occurs, the future can be set to completed
+  //? This is used to make sure both tasks are completed before sending data
+  Completer<void> recordingCompleter = Completer<void>();
+  Completer<void> bottomSheetCompleter = Completer<void>();
 
   // State Variables
   String name = "Default";
@@ -116,8 +121,10 @@ class _HomePageState extends State<HomePage> {
   ElevatedButton recordButton() {
     return ElevatedButton(
       onPressed: () async {
+        // Assign its future to the recording variable
+        Future<void> recording = recordingCompleter.future;
         timerController.start();
-        Future recording = recordController.startRecording();
+        recordController.startRecording();
 
         Position? position = await loc.Location().getCurrentPosition();
         String address = "NA";
@@ -129,9 +136,9 @@ class _HomePageState extends State<HomePage> {
           this.address = address;
           addressController.text = address;
         });
-
+        Future bottomSheet = bottomSheetCompleter.future;
         // ignore: use_build_context_synchronously
-        Future bottomSheet = _showBottomSheet(context);
+        _showBottomSheet(context);
 
         await Future.wait([recording, bottomSheet]).then((value) async {
           await sendData(
@@ -139,6 +146,9 @@ class _HomePageState extends State<HomePage> {
               address: address,
               trafficIntensity: selectedIntensity,
               position: position);
+
+          recordingCompleter = Completer<void>();
+          bottomSheetCompleter = Completer<void>();
 
           // Reset the selected intensity after sending data.
           // Intensity is also used to check if the metadata has been filled
@@ -191,7 +201,6 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _isRecording = true;
               });
-              //! _dataSent = false;
             },
             onComplete: () async {
               setState(() {
@@ -200,6 +209,9 @@ class _HomePageState extends State<HomePage> {
 
               await recordController.stopRecording().then((fileName) {
                 _fileName = fileName;
+
+                // Complete the recording completer
+                recordingCompleter.complete();
               });
             },
           ),
@@ -253,6 +265,9 @@ class _HomePageState extends State<HomePage> {
 
         await recordController.stopRecording().then((fileName) {
           _fileName = fileName;
+
+          // Complete the recording completer
+          recordingCompleter.complete();
         });
         timerController.reset();
       },
@@ -407,6 +422,9 @@ class _HomePageState extends State<HomePage> {
                           ),
                           child: TextButton(
                             onPressed: () async {
+                              // Complete the bottom sheet completer
+                              bottomSheetCompleter.complete();
+
                               Navigator.pop(context);
                               Fluttertoast.showToast(
                                 msg: 'Data has been saved.',
