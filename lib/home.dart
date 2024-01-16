@@ -184,12 +184,18 @@ class _HomePageState extends State<HomePage> {
 
               await recordController.stopRecording().then((fileName) async {
                 _fileName = fileName;
-                if (!_dataSent && position != null) {
+                if (!_dataSent && selectedIntensity != 0) {
                   await sendData(
                       fileName: fileName,
                       address: address,
                       trafficIntensity: selectedIntensity,
                       position: position);
+
+                  // Reset the selected intensity after sending data.
+                  // Intensity is also used to check if the metadata has been filled
+                  setState(() {
+                    selectedIntensity = 0;
+                  });
                   log('The data has been sent $fileName, $address, $selectedIntensity, $position');
                 }
               });
@@ -245,12 +251,19 @@ class _HomePageState extends State<HomePage> {
 
         await recordController.stopRecording().then((fileName) async {
           _fileName = fileName;
-          if (!_dataSent && position != null) {
+          if (!_dataSent && selectedIntensity != 0) {
             await sendData(
                 fileName: fileName,
                 address: address,
                 trafficIntensity: selectedIntensity,
                 position: position);
+
+            // Reset the selected intensity after sending data.
+            // Intensity is also used to check if the metadata has been filled
+            setState(() {
+              selectedIntensity = 0;
+            });
+
             log('The data has been sent $fileName, $address, $selectedIntensity, $position');
           }
         });
