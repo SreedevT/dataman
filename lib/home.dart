@@ -29,19 +29,13 @@ class _HomePageState extends State<HomePage> {
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
 
-  final RecordController recordController = RecordController();
+  RecordController recordController = RecordController();
 
   @override
   void initState() {
     super.initState();
     // Get the name from the shared preferences
     getValue('name').then((value) {
-      if (value == '') {
-        value = "Default";
-      }
-      setState(() {
-        name = value;
-      });
       nameController.text = value;
     });
   }
@@ -265,12 +259,10 @@ class _HomePageState extends State<HomePage> {
                 backgroundColor: MaterialStateProperty.all(Colors.grey[900]),
               ),
               onPressed: () {
-                // Get the name from the controller and save it in the variable
-                setState(() {
-                  name = nameController.text;
-                });
                 // Save the name in the shared preferences
-                storeValue('name', name);
+                storeValue('name', nameController.text);
+                // Reinit the record controller, this updates the name value used in the filename
+                recordController.init();
                 // Close the dialog box
                 Navigator.pop(context);
               },
@@ -385,6 +377,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           child: TextButton(
                             onPressed: () {
+                              //submitData();
                               Navigator.pop(context);
                               log("Submit button pressed");
                             },

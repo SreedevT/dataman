@@ -15,16 +15,16 @@ class RecordController {
 
   RecordController() {
     init();
-
-    getValue('name').then((value) {
-      name = value;
-    });
   }
 
   void init() async {
     if (!await directoryPath.exists()) {
       await directoryPath.create();
     }
+
+    getValue('name').then((value) {
+      name = value;
+    });
   }
 
   void startRecording() async {
@@ -42,7 +42,7 @@ class RecordController {
     }
   }
 
-  Future<void> stopRecording() async {
+  Future<String> stopRecording() async {
     //Stop recording
     final path = await record.stop();
 
@@ -55,6 +55,7 @@ class RecordController {
     );
 
     log("Recording is complete $path");
+    return '${name}_$unixTime.wav';
   }
 
   void dispose() {
