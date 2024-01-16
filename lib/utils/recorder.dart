@@ -42,7 +42,7 @@ class RecordController {
     }
   }
 
-  void stopRecording() async {
+  Future<void> stopRecording() async {
     //Stop recording
     final path = await record.stop();
 

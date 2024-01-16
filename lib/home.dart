@@ -36,6 +36,9 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     // Get the name from the shared preferences
     getValue('name').then((value) {
+      if (value == '') {
+        value = "Default";
+      }
       setState(() {
         name = value;
       });
@@ -222,12 +225,12 @@ class _HomePageState extends State<HomePage> {
 
   Widget stopButton() {
     return ElevatedButton(
-      onPressed: () {
-        recordController.stopRecording();
-        timerController.reset();
+      onPressed: () async {
         setState(() {
           _isRecording = false;
         });
+        await recordController.stopRecording();
+        timerController.reset();
       },
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
