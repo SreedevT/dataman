@@ -8,7 +8,7 @@ Future<void> storeValue(String key, String value) async {
 // Retrieve a string value
 Future<String> getValue(String key) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  String value = prefs.getString(key) ?? "";
+  String value = prefs.getString(key) ?? "Default";
 
   return value;
 }
