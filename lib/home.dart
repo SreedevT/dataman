@@ -127,6 +127,7 @@ class _HomePageState extends State<HomePage> {
 
         Position? position = await loc.Location().getCurrentPosition();
         String address = "NA";
+        // Address field is not supported in web
         if (!kIsWeb) {
           address = await loc.Location().getAddressFromLatLng(position!) ?? "";
         }
@@ -142,20 +143,19 @@ class _HomePageState extends State<HomePage> {
         await Future.wait([recording, bottomSheet]).then((value) async {
           await sendData(
               fileName: _fileName,
-              address: address,
+              address: addressController.text,
               trafficIntensity: selectedIntensity,
               position: position);
 
           recordingCompleter = Completer<void>();
           bottomSheetCompleter = Completer<void>();
 
+          log('The data has been sent $_fileName, ${addressController.text}, $selectedIntensity, $position');
+
           // Reset the selected intensity after sending data.
-          // Intensity is also used to check if the metadata has been filled
           setState(() {
             selectedIntensity = 0;
           });
-
-          log('The data has been sent $_fileName, $address, $selectedIntensity, $position');
         });
       },
       style: ButtonStyle(
@@ -366,8 +366,13 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: TextFormField(
                             controller: addressController,
+                            onChanged: (value) {
+                              setSheetState(() {
+                                address = addressController.text;
+                              });
+                            },
                             decoration: InputDecoration(
-                              hintText: 'Location',
+                              hintText: 'Address',
                               hintStyle: TextStyle(color: Colors.grey[400]),
                             ),
                             style: TextStyle(color: Colors.grey[100]),

@@ -43,11 +43,8 @@ class RecordController {
 
   Future<String> stopRecording() async {
     //Stop recording
-    String path = "";
-    await record.stop().then((value) {
-      path = value!;
-      if (kIsWeb) saveRecordingWeb(value);
-    });
+    String? path = await record.stop();
+    if (kIsWeb) saveRecordingWeb(path);
 
     Fluttertoast.showToast(
       msg: 'Recording is complete', // Todo Maybe add filename in msg
@@ -65,13 +62,13 @@ class RecordController {
     record.dispose();
   }
 
-  void saveRecordingWeb(String url) {
+  void saveRecordingWeb(String? url) {
     // Create a link with the Blob URL
     AnchorElement(href: url)
       ..setAttribute('download', '${unixTime}_$name.wav')
       ..click();
 
     // Revoke the Blob URL
-    Url.revokeObjectUrl(url);
+    Url.revokeObjectUrl(url!);
   }
 }
