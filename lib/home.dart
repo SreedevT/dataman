@@ -1,6 +1,7 @@
 import 'dart:developer';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
 import 'utils/firebase.dart';
 import 'utils/recorder.dart';
 import 'utils/shared_pref.dart';
@@ -118,9 +119,10 @@ class _HomePageState extends State<HomePage> {
         timerController.start();
 
         Position? position = await loc.Location().getCurrentPosition();
-        String address =
-            await loc.Location().getAddressFromLatLng(position!) ?? "";
-
+        String address = "NA";
+        if (!kIsWeb) {
+          address = await loc.Location().getAddressFromLatLng(position!) ?? "";
+        }
         setState(() {
           this.position = position;
           this.address = address;
@@ -240,7 +242,6 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _isRecording = false;
         });
-
 
         await recordController.stopRecording().then((fileName) async {
           _fileName = fileName;
@@ -407,7 +408,7 @@ class _HomePageState extends State<HomePage> {
                           child: TextButton(
                             onPressed: () async {
                               Navigator.pop(context);
-                              if (_isRecording){
+                              if (_isRecording) {
                                 Fluttertoast.showToast(
                                   msg: 'Data has been saved.',
                                   toastLength: Toast.LENGTH_SHORT,

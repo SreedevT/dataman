@@ -1,10 +1,12 @@
+import 'dart:html';
+import 'dart:io';
+
 import 'package:dataman/utils/shared_pref.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:record/record.dart';
-// import 'package:path_provider/path_provider.dart';
 import 'dart:developer';
-import 'dart:io';
 
 class RecordController {
   final record = AudioRecorder();
@@ -18,7 +20,7 @@ class RecordController {
   }
 
   void init() async {
-    if (!await directoryPath.exists()) {
+    if (!kIsWeb && !await directoryPath.exists()) {
       await directoryPath.create();
     }
 
@@ -29,8 +31,6 @@ class RecordController {
 
   void startRecording() async {
     // TODO: Maybe add support for multiple platforms or better compatibility in android
-    // List<Directory>? appDocDir = await getExternalStorageDirectories();
-    // log("The appDocDir is $appDocDir");
 
     if (await record.hasPermission()) {
       //Unit time in seconds
@@ -44,7 +44,11 @@ class RecordController {
 
   Future<String> stopRecording() async {
     //Stop recording
-    final path = await record.stop();
+    String path = "";
+    await record.stop().then((value) {
+      path = value!;
+      if (kIsWeb) saveRecordingWeb(value);
+    });
 
     Fluttertoast.showToast(
       msg: 'Recording is complete', // Todo Maybe add filename in msg
@@ -60,5 +64,15 @@ class RecordController {
 
   void dispose() {
     record.dispose();
+  }
+
+  void saveRecordingWeb(String url) {
+    // Create a link with the Blob URL
+    AnchorElement(href: url)
+      ..setAttribute('download', '${name}_$unixTime.wav')
+      ..click();
+
+    // Revoke the Blob URL
+    Url.revokeObjectUrl(url);
   }
 }
