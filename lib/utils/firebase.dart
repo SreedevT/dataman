@@ -35,7 +35,7 @@ Future<void> sendData(
 }
 
 DateTime getRecordTime(String fileName) {
-  String unixTime = fileName.split('_')[1];
+  String unixTime = fileName.split('_')[0];
   DateTime recordTime = DateTime.fromMillisecondsSinceEpoch(int.parse(unixTime) * 1000);
   return recordTime;
 }
