@@ -1,4 +1,7 @@
 import 'dart:developer';
+import 'package:fluttertoast/fluttertoast.dart';
+
+import 'utils/firebase.dart';
 import 'utils/recorder.dart';
 import 'utils/shared_pref.dart';
 import 'widgets/color_icon.dart';
@@ -15,16 +18,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Private Variables
+  String _fileName = "";
+  bool _dataSent = false;
+
   // State Variables
   String name = "Default";
   int duration = 15;
   bool _isRecording = false;
-  String location = "";
+  String address = "";
   Position? position;
   int selectedIntensity = 0;
 
   // Controllers
-  TextEditingController locationController = TextEditingController();
+  TextEditingController addressController = TextEditingController();
 
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
@@ -44,7 +51,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     // Clean up the controller when the widget is disposed.
     nameController.dispose();
-    locationController.dispose();
+    addressController.dispose();
     recordController.dispose();
 
     super.dispose();
@@ -97,7 +104,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 20),
           Text(
-            "The coordinates are $location",
+            "The address is $address",
             style: TextStyle(color: Colors.grey[100]),
           ),
         ],
@@ -116,8 +123,8 @@ class _HomePageState extends State<HomePage> {
 
         setState(() {
           this.position = position;
-          location = address;
-          locationController.text = address;
+          this.address = address;
+          addressController.text = address;
         });
 
         // ignore: use_build_context_synchronously
@@ -166,14 +173,24 @@ class _HomePageState extends State<HomePage> {
                 _isRecording = true;
               });
               recordController.startRecording();
+              _dataSent = false;
             },
-            onComplete: () {
+            onComplete: () async {
               setState(() {
                 _isRecording = false;
-                selectedIntensity = 0;
               });
 
-              recordController.stopRecording();
+              await recordController.stopRecording().then((fileName) async {
+                _fileName = fileName;
+                if (!_dataSent && position != null) {
+                  await sendData(
+                      fileName: fileName,
+                      address: address,
+                      trafficIntensity: selectedIntensity,
+                      position: position);
+                  log('The data has been sent $fileName, $address, $selectedIntensity, $position');
+                }
+              });
             },
           ),
           Positioned(
@@ -223,7 +240,19 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _isRecording = false;
         });
-        await recordController.stopRecording();
+
+
+        await recordController.stopRecording().then((fileName) async {
+          _fileName = fileName;
+          if (!_dataSent && position != null) {
+            await sendData(
+                fileName: fileName,
+                address: address,
+                trafficIntensity: selectedIntensity,
+                position: position);
+            log('The data has been sent $fileName, $address, $selectedIntensity, $position');
+          }
+        });
         timerController.reset();
       },
       style: ButtonStyle(
@@ -321,7 +350,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child: TextFormField(
-                            controller: locationController,
+                            controller: addressController,
                             decoration: InputDecoration(
                               hintText: 'Location',
                               hintStyle: TextStyle(color: Colors.grey[400]),
@@ -376,9 +405,25 @@ class _HomePageState extends State<HomePage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: TextButton(
-                            onPressed: () {
-                              //submitData();
+                            onPressed: () async {
                               Navigator.pop(context);
+                              if (_isRecording){
+                                Fluttertoast.showToast(
+                                  msg: 'Data has been saved.',
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.SNACKBAR,
+                                  backgroundColor: Colors.grey,
+                                  textColor: Colors.white,
+                                );
+                              } else {
+                                await sendData(
+                                    fileName: _fileName,
+                                    address: address,
+                                    trafficIntensity: selectedIntensity,
+                                    position: position);
+
+                                _dataSent = true;
+                              }
                               log("Submit button pressed");
                             },
                             child: Text(

@@ -55,7 +55,7 @@ class RecordController {
     );
 
     log("Recording is complete $path");
-    return '${name}_$unixTime.wav';
+    return '${name}_$unixTime';
   }
 
   void dispose() {
