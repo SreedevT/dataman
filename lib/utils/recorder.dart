@@ -1,6 +1,4 @@
-import 'dart:html';
 import 'dart:io';
-
 import 'package:dataman/utils/shared_pref.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +27,7 @@ class RecordController {
     });
   }
 
-  void startRecording() async {
+  Future<void> startRecording() async {
     // TODO: Maybe add support for multiple platforms or better compatibility in android
 
     if (await record.hasPermission()) {

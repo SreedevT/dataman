@@ -117,6 +117,7 @@ class _HomePageState extends State<HomePage> {
     return ElevatedButton(
       onPressed: () async {
         timerController.start();
+        Future recording = recordController.startRecording();
 
         Position? position = await loc.Location().getCurrentPosition();
         String address = "NA";
@@ -130,7 +131,23 @@ class _HomePageState extends State<HomePage> {
         });
 
         // ignore: use_build_context_synchronously
-        _showBottomSheet(context);
+        Future bottomSheet = _showBottomSheet(context);
+
+        await Future.wait([recording, bottomSheet]).then((value) async {
+          await sendData(
+              fileName: _fileName,
+              address: address,
+              trafficIntensity: selectedIntensity,
+              position: position);
+
+          // Reset the selected intensity after sending data.
+          // Intensity is also used to check if the metadata has been filled
+          setState(() {
+            selectedIntensity = 0;
+          });
+
+          log('The data has been sent $_fileName, $address, $selectedIntensity, $position');
+        });
       },
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
@@ -174,30 +191,15 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _isRecording = true;
               });
-              recordController.startRecording();
-              _dataSent = false;
+              //! _dataSent = false;
             },
             onComplete: () async {
               setState(() {
                 _isRecording = false;
               });
 
-              await recordController.stopRecording().then((fileName) async {
+              await recordController.stopRecording().then((fileName) {
                 _fileName = fileName;
-                if (!_dataSent && selectedIntensity != 0) {
-                  await sendData(
-                      fileName: fileName,
-                      address: address,
-                      trafficIntensity: selectedIntensity,
-                      position: position);
-
-                  // Reset the selected intensity after sending data.
-                  // Intensity is also used to check if the metadata has been filled
-                  setState(() {
-                    selectedIntensity = 0;
-                  });
-                  log('The data has been sent $fileName, $address, $selectedIntensity, $position');
-                }
               });
             },
           ),
@@ -249,23 +251,8 @@ class _HomePageState extends State<HomePage> {
           _isRecording = false;
         });
 
-        await recordController.stopRecording().then((fileName) async {
+        await recordController.stopRecording().then((fileName) {
           _fileName = fileName;
-          if (!_dataSent && selectedIntensity != 0) {
-            await sendData(
-                fileName: fileName,
-                address: address,
-                trafficIntensity: selectedIntensity,
-                position: position);
-
-            // Reset the selected intensity after sending data.
-            // Intensity is also used to check if the metadata has been filled
-            setState(() {
-              selectedIntensity = 0;
-            });
-
-            log('The data has been sent $fileName, $address, $selectedIntensity, $position');
-          }
         });
         timerController.reset();
       },
@@ -331,7 +318,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showBottomSheet(BuildContext context) {
+  Future<void> _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isDismissible: true,
@@ -421,23 +408,13 @@ class _HomePageState extends State<HomePage> {
                           child: TextButton(
                             onPressed: () async {
                               Navigator.pop(context);
-                              if (_isRecording) {
-                                Fluttertoast.showToast(
-                                  msg: 'Data has been saved.',
-                                  toastLength: Toast.LENGTH_SHORT,
-                                  gravity: ToastGravity.SNACKBAR,
-                                  backgroundColor: Colors.grey,
-                                  textColor: Colors.white,
-                                );
-                              } else {
-                                await sendData(
-                                    fileName: _fileName,
-                                    address: address,
-                                    trafficIntensity: selectedIntensity,
-                                    position: position);
-
-                                _dataSent = true;
-                              }
+                              Fluttertoast.showToast(
+                                msg: 'Data has been saved.',
+                                toastLength: Toast.LENGTH_SHORT,
+                                gravity: ToastGravity.SNACKBAR,
+                                backgroundColor: Colors.grey,
+                                textColor: Colors.white,
+                              );
                               log("Submit button pressed");
                             },
                             child: Text(
@@ -459,5 +436,6 @@ class _HomePageState extends State<HomePage> {
         });
       },
     );
+    return Future.value();
   }
 }
