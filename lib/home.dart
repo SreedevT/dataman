@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:developer';
-
-import 'package:dataman/utils/shared_pref.dart';
-import 'package:dataman/utils/traffic_api.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'utils/firebase.dart';
+import 'utils/recorder.dart';
+import 'utils/shared_pref.dart';
+import 'widgets/color_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'utils/location.dart' as loc;
 
@@ -16,18 +20,48 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Private Variables
+  String _fileName = "";
+  // completers can hold futures.
+  // When a specific event occurs, the future can be set to completed
+  //? This is used to make sure both tasks are completed before sending data
+  Completer<void> recordingCompleter = Completer<void>();
+  Completer<void> bottomSheetCompleter = Completer<void>();
+
   // State Variables
-  String name = "";
+  String name = "Default";
+  int duration = 15;
   bool _isRecording = false;
-  String location = "";
+  String address = "";
   Position? position;
   int selectedIntensity = 0;
 
   // Controllers
-  TextEditingController locationController = TextEditingController();
+  TextEditingController addressController = TextEditingController();
 
   final nameController = TextEditingController();
   final CountDownController timerController = CountDownController();
+
+  RecordController recordController = RecordController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Get the name from the shared preferences
+    getValue('name').then((value) {
+      nameController.text = value;
+    });
+  }
+
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    nameController.dispose();
+    addressController.dispose();
+    recordController.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +82,12 @@ class _HomePageState extends State<HomePage> {
           ],
           actionsIconTheme: IconThemeData(color: Colors.grey[100]),
         ),
-        body: recordingIndicator(),
+        body: Stack(
+          children: [
+            durationBox(),
+            recordingIndicator(),
+          ],
+        ),
         floatingActionButton: FloatingActionButton(
           onPressed: showNameDialog,
           backgroundColor: Colors.red,
@@ -71,7 +110,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 20),
           Text(
-            "The coordinates are $location",
+            "The address is $address",
             style: TextStyle(color: Colors.grey[100]),
           ),
         ],
@@ -82,21 +121,43 @@ class _HomePageState extends State<HomePage> {
   ElevatedButton recordButton() {
     return ElevatedButton(
       onPressed: () async {
-        Position? position = await loc.Location().getCurrentPosition();
-        String address =
-            await loc.Location().getAddressFromLatLng(position!) ?? "";
+        // Assign its future to the recording variable
+        Future<void> recording = recordingCompleter.future;
+        timerController.start();
+        recordController.startRecording();
 
+        Position? position = await loc.Location().getCurrentPosition();
+        String address = "NA";
+        if (!kIsWeb) {
+          address = await loc.Location().getAddressFromLatLng(position!) ?? "";
+        }
         setState(() {
           this.position = position;
-          location = address;
-          locationController.text = address;
-          _isRecording = true;
+          this.address = address;
+          addressController.text = address;
         });
-
-        timerController.start();
-
+        Future bottomSheet = bottomSheetCompleter.future;
         // ignore: use_build_context_synchronously
         _showBottomSheet(context);
+
+        await Future.wait([recording, bottomSheet]).then((value) async {
+          await sendData(
+              fileName: _fileName,
+              address: address,
+              trafficIntensity: selectedIntensity,
+              position: position);
+
+          recordingCompleter = Completer<void>();
+          bottomSheetCompleter = Completer<void>();
+
+          // Reset the selected intensity after sending data.
+          // Intensity is also used to check if the metadata has been filled
+          setState(() {
+            selectedIntensity = 0;
+          });
+
+          log('The data has been sent $_fileName, $address, $selectedIntensity, $position');
+        });
       },
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
@@ -111,38 +172,115 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  CircularCountDownTimer countDown() {
-    return CircularCountDownTimer(
-      width: 110,
-      height: 110,
-      duration: 3, // Set the duration to 15 seconds
-      fillColor: Colors.blue,
-      ringColor: Colors.white,
-      controller: timerController,
-      textStyle: TextStyle(
-        fontSize: 25,
-        color: Colors.grey[100],
-        fontWeight: FontWeight.bold,
+  Widget countDown() {
+    return SizedBox(
+      width: 280,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularCountDownTimer(
+            key: ValueKey(duration),
+            width: 110,
+            height: 110,
+            duration: duration,
+            fillColor: Colors.blue,
+            ringColor: Colors.white,
+            controller: timerController,
+            textStyle: TextStyle(
+              fontSize: 25,
+              color: Colors.grey[100],
+              fontWeight: FontWeight.bold,
+            ),
+            textFormat: CountdownTextFormat.S,
+            isTimerTextShown: true, // Show the timer text
+            autoStart: false,
+            isReverse: true,
+            isReverseAnimation: true,
+            onStart: () {
+              log('The timer has started with duration $duration');
+              setState(() {
+                _isRecording = true;
+              });
+            },
+            onComplete: () async {
+              setState(() {
+                _isRecording = false;
+              });
+
+              await recordController.stopRecording().then((fileName) {
+                _fileName = fileName;
+
+                // Complete the recording completer
+                recordingCompleter.complete();
+              });
+            },
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: stopButton(),
+          ),
+        ],
       ),
-      textFormat: CountdownTextFormat.S,
-      isTimerTextShown: true, // Show the timer text
-      autoStart: false,
-      isReverse: true,
-      isReverseAnimation: true,
-      onStart: () {},
-      onComplete: () {
+    );
+  }
+
+  Widget durationBox() {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        margin: const EdgeInsets.only(top: 20),
+        width: 110, // Set this to the width of your record icon
+        child: TextField(
+          decoration: InputDecoration(
+            labelText: 'Duration',
+            hintText: 'Duration',
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            border: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(Radius.circular(
+                  20)), // This makes the TextField have rounded corners
+              borderSide: BorderSide(color: Colors.grey[100]!),
+            ),
+          ),
+          style: TextStyle(color: Colors.grey[100]),
+          enabled: !_isRecording,
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            setState(() {
+              duration = int.parse(value);
+              log('The duration is $duration');
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget stopButton() {
+    return ElevatedButton(
+      onPressed: () async {
         setState(() {
           _isRecording = false;
         });
 
-        Fluttertoast.showToast(
-          msg: 'Recording is complete', // Todo Maybe add filename in msg
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.SNACKBAR,
-          backgroundColor: Colors.grey,
-          textColor: Colors.white,
-        );
+        await recordController.stopRecording().then((fileName) {
+          _fileName = fileName;
+
+          // Complete the recording completer
+          recordingCompleter.complete();
+        });
+        timerController.reset();
       },
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(Colors.grey[850]),
+        shape: MaterialStateProperty.all(const CircleBorder()),
+        padding: MaterialStateProperty.all(const EdgeInsets.all(20)),
+        iconSize: MaterialStateProperty.all(35),
+      ),
+      child: const Icon(
+        Icons.stop,
+        color: Colors.red,
+      ),
     );
   }
 
@@ -166,12 +304,10 @@ class _HomePageState extends State<HomePage> {
                 backgroundColor: MaterialStateProperty.all(Colors.grey[900]),
               ),
               onPressed: () {
-                // Get the name from the controller and save it in the variable
-                setState(() {
-                  name = nameController.text;
-                });
                 // Save the name in the shared preferences
-                storeValue('name', name);
+                storeValue('name', nameController.text);
+                // Reinit the record controller, this updates the name value used in the filename
+                recordController.init();
                 // Close the dialog box
                 Navigator.pop(context);
               },
@@ -197,7 +333,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showBottomSheet(BuildContext context) {
+  Future<void> _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isDismissible: true,
@@ -230,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child: TextFormField(
-                            controller: locationController,
+                            controller: addressController,
                             decoration: InputDecoration(
                               hintText: 'Location',
                               hintStyle: TextStyle(color: Colors.grey[400]),
@@ -255,14 +391,26 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             // Call the function with different colors and tooltips
-                            _colorIcon(
-                                Colors.green, 'Low traffic', 1, setSheetState),
-                            _colorIcon(Colors.yellow, 'Moderate traffic', 2,
-                                setSheetState),
-                            _colorIcon(Colors.orange, 'High traffic', 3,
-                                setSheetState),
-                            _colorIcon(
-                                Colors.red, 'Severe traffic', 4, setSheetState),
+                            colorIcon(Colors.green, 'Low traffic',
+                                selectedIntensity, 1,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 1;
+                                    })),
+                            colorIcon(Colors.yellow, 'Moderate traffic',
+                                selectedIntensity, 2,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 2;
+                                    })),
+                            colorIcon(Colors.orange, 'High traffic',
+                                selectedIntensity, 3,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 3;
+                                    })),
+                            colorIcon(Colors.red, 'Severe traffic',
+                                selectedIntensity, 4,
+                                onTap: () => setSheetState(() {
+                                      selectedIntensity = 4;
+                                    })),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -273,8 +421,27 @@ class _HomePageState extends State<HomePage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: TextButton(
-                            onPressed: () {},
-                            child: Text("Submit", style: TextStyle(color: Colors.purple[300], fontSize: 16, fontWeight: FontWeight.bold),),
+                            onPressed: () async {
+                              // Complete the bottom sheet completer
+                              bottomSheetCompleter.complete();
+
+                              Navigator.pop(context);
+                              Fluttertoast.showToast(
+                                msg: 'Data has been saved.',
+                                toastLength: Toast.LENGTH_SHORT,
+                                gravity: ToastGravity.SNACKBAR,
+                                backgroundColor: Colors.grey,
+                                textColor: Colors.white,
+                              );
+                              log("Submit button pressed");
+                            },
+                            child: Text(
+                              "Submit",
+                              style: TextStyle(
+                                  color: Colors.purple[300],
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold),
+                            ),
                           ),
                         )
                       ],
@@ -287,31 +454,6 @@ class _HomePageState extends State<HomePage> {
         });
       },
     );
-  }
-
-  // A function that returns a colored circle icon with a tooltip
-  Widget _colorIcon(
-      Color color, String tooltip, int intensity, StateSetter setSheetState) {
-    return GestureDetector(
-      onTap: () {
-        log('The color is $color and the intensity is $intensity');
-        setSheetState(() {
-          selectedIntensity = intensity;
-        });
-      },
-      child: Tooltip(
-        message: tooltip,
-        child: CircleAvatar(
-          backgroundColor: color,
-          radius: intensity == selectedIntensity ? 18 : 15,
-          child: intensity == selectedIntensity
-              ? const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                )
-              : null,
-        ),
-      ),
-    );
+    return Future.value();
   }
 }
