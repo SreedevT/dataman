@@ -50,6 +50,8 @@ class _HomePageState extends State<HomePage> {
     getValue('name').then((value) {
       nameController.text = value;
     });
+
+    setPositionAddress();
   }
 
   @override
@@ -74,9 +76,14 @@ class _HomePageState extends State<HomePage> {
           centerTitle: true,
           backgroundColor: Colors.grey[900],
           actions: [
-            IconButton(
-              icon: const Icon(Icons.history),
-              onPressed: () {},
+            Tooltip(
+              message: 'Reset location',
+              child: IconButton(
+                icon: const Icon(Icons.settings_backup_restore),
+                onPressed: () {
+                  setPositionAddress();
+                },
+              ),
             )
           ],
           actionsIconTheme: IconThemeData(color: Colors.grey[100]),
@@ -125,17 +132,6 @@ class _HomePageState extends State<HomePage> {
         timerController.start();
         recordController.startRecording();
 
-        Position? position = await loc.Location().getCurrentPosition();
-        String address = "NA";
-        // Address field is not supported in web
-        if (!kIsWeb) {
-          address = await loc.Location().getAddressFromLatLng(position!) ?? "";
-        }
-        setState(() {
-          this.position = position;
-          this.address = address;
-          addressController.text = address;
-        });
         Future bottomSheet = bottomSheetCompleter.future;
         // ignore: use_build_context_synchronously
         _showBottomSheet(context);
@@ -230,7 +226,9 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         margin: const EdgeInsets.only(top: 20),
         width: 110, // Set this to the width of your record icon
-        child: TextField(
+        child: TextFormField(
+          initialValue: duration.toString(),
+          autofillHints: const ['10', '15', '30', '60'],
           decoration: InputDecoration(
             labelText: 'Duration',
             hintText: 'Duration',
@@ -246,7 +244,7 @@ class _HomePageState extends State<HomePage> {
           keyboardType: TextInputType.number,
           onChanged: (value) {
             setState(() {
-              duration = int.parse(value);
+              duration = value.isNotEmpty ? int.parse(value) : 0;
               log('The duration is $duration');
             });
           },
@@ -332,7 +330,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _showBottomSheet(BuildContext context) {
+  void _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isDismissible: true,
@@ -458,6 +456,19 @@ class _HomePageState extends State<HomePage> {
         });
       },
     );
-    return Future.value();
+  }
+
+  void setPositionAddress() async {
+    Position? position = await loc.Location().getCurrentPosition();
+    String address = "NA";
+    // Address field is not supported in web
+    if (!kIsWeb) {
+      address = await loc.Location().getAddressFromLatLng(position!) ?? "";
+    }
+    setState(() {
+      this.position = position;
+      this.address = address;
+      addressController.text = address;
+    });
   }
 }

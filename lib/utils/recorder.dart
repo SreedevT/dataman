@@ -19,10 +19,25 @@ class RecordController {
   }
 
   void init() async {
+    // Create a directory if it doesn't exist in android
     if (!kIsWeb && !await directoryPath.exists()) {
       await directoryPath.create();
     }
 
+    // Request permission to record audio
+    if (await record.hasPermission()) {
+      log('Permission to record granted');
+    } else {
+      Fluttertoast.showToast(
+        msg: 'Permission to record denied',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.SNACKBAR,
+        backgroundColor: Colors.grey,
+        textColor: Colors.white,
+      );
+    }
+
+    // Get name from shared preferences
     getValue('name').then((value) {
       name = value;
     });
