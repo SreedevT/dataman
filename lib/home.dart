@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
+import 'package:dataman/widgets/metadata_form.dart';
 import 'package:flutter/foundation.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'utils/firebase.dart';
 import 'utils/recorder.dart';
 import 'utils/shared_pref.dart';
-import 'widgets/color_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:geolocator/geolocator.dart';
@@ -32,8 +31,8 @@ class _HomePageState extends State<HomePage> {
   int duration = 15;
   bool _isRecording = false;
   String address = "";
-  Position? position;
-  int selectedIntensity = 0;
+  Position? _position;
+  int trafficIntesity = 0;
 
   // Controllers
   TextEditingController addressController = TextEditingController();
@@ -78,12 +77,18 @@ class _HomePageState extends State<HomePage> {
           actions: [
             Tooltip(
               message: 'Reset location',
-              child: IconButton(
-                icon: const Icon(Icons.settings_backup_restore),
-                onPressed: () {
-                  setPositionAddress();
-                },
-              ),
+              child: address == "Loading..."
+                  ? const SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.settings_backup_restore),
+                      onPressed: () {
+                        setPositionAddress();
+                      },
+                    ),
             )
           ],
           actionsIconTheme: IconThemeData(color: Colors.grey[100]),
@@ -140,17 +145,17 @@ class _HomePageState extends State<HomePage> {
           await sendData(
               fileName: _fileName,
               address: addressController.text,
-              trafficIntensity: selectedIntensity,
-              position: position);
+              trafficIntensity: trafficIntesity,
+              position: _position);
 
           recordingCompleter = Completer<void>();
           bottomSheetCompleter = Completer<void>();
 
-          log('The data has been sent $_fileName, ${addressController.text}, $selectedIntensity, $position');
+          log('The data has been sent $_fileName, ${addressController.text}, $trafficIntesity, $_position');
 
           // Reset the selected intensity after sending data.
           setState(() {
-            selectedIntensity = 0;
+            trafficIntesity = 0;
           });
         });
       },
@@ -335,130 +340,26 @@ class _HomePageState extends State<HomePage> {
       context: context,
       isDismissible: true,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setSheetState) {
-          return SingleChildScrollView(
-            child: AnimatedPadding(
-              padding: MediaQuery.of(context).viewInsets,
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.decelerate,
-              child: Container(
-                height: 300,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Display the latitude and longitude in one row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Text(
-                            'Latitude: ${position!.latitude.toStringAsFixed(3)}'),
-                        Text(
-                            'Longitude: ${position!.longitude.toStringAsFixed(3)}'),
-                      ],
-                    ),
-                    // Display the location name in another row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: addressController,
-                            onChanged: (value) {
-                              setSheetState(() {
-                                address = addressController.text;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Address',
-                              hintStyle: TextStyle(color: Colors.grey[400]),
-                            ),
-                            style: TextStyle(color: Colors.grey[100]),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Display the option to pick from 4 colors which represent the traffic congestion
-                    Column(
-                      children: [
-                        Text(
-                          'Select the traffic intensity',
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Call the function with different colors and tooltips
-                            colorIcon(Colors.green, 'Low traffic',
-                                selectedIntensity, 1,
-                                onTap: () => setSheetState(() {
-                                      selectedIntensity = 1;
-                                    })),
-                            colorIcon(Colors.yellow, 'Moderate traffic',
-                                selectedIntensity, 2,
-                                onTap: () => setSheetState(() {
-                                      selectedIntensity = 2;
-                                    })),
-                            colorIcon(Colors.orange, 'High traffic',
-                                selectedIntensity, 3,
-                                onTap: () => setSheetState(() {
-                                      selectedIntensity = 3;
-                                    })),
-                            colorIcon(Colors.red, 'Severe traffic',
-                                selectedIntensity, 4,
-                                onTap: () => setSheetState(() {
-                                      selectedIntensity = 4;
-                                    })),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: TextButton(
-                            onPressed: () async {
-                              // Complete the bottom sheet completer
-                              bottomSheetCompleter.complete();
+        return MetadataForm(
+            position: _position,
+            address: address,
+            setPatentState: (address, intensity) {
+              setState(() {
+                this.address = address;
+                addressController.text = address;
+                trafficIntesity = intensity;
+              });
 
-                              Navigator.pop(context);
-                              Fluttertoast.showToast(
-                                msg: 'Data has been saved.',
-                                toastLength: Toast.LENGTH_SHORT,
-                                gravity: ToastGravity.SNACKBAR,
-                                backgroundColor: Colors.grey,
-                                textColor: Colors.white,
-                              );
-                              log("Submit button pressed");
-                            },
-                            child: Text(
-                              "Submit",
-                              style: TextStyle(
-                                  color: Colors.purple[300],
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        });
+              bottomSheetCompleter.complete();
+            });
       },
     );
   }
 
   void setPositionAddress() async {
+    setState(() {
+      this.address = "Loading...";
+    });
     Position? position = await loc.Location().getCurrentPosition();
     String address = "NA";
     // Address field is not supported in web
@@ -466,7 +367,7 @@ class _HomePageState extends State<HomePage> {
       address = await loc.Location().getAddressFromLatLng(position!) ?? "";
     }
     setState(() {
-      this.position = position;
+      _position = position;
       this.address = address;
       addressController.text = address;
     });
