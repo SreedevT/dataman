@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:dataman/widgets/metadata_form.dart';
 import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 import 'utils/firebase.dart';
 import 'utils/recorder.dart';
 import 'utils/shared_pref.dart';
@@ -20,6 +21,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // Private Variables
   String _fileName = "";
+  int trafficIntesity = 0;
+
   // completers can hold futures.
   // When a specific event occurs, the future can be set to completed
   //? This is used to make sure both tasks are completed before sending data
@@ -31,8 +34,8 @@ class _HomePageState extends State<HomePage> {
   int duration = 15;
   bool _isRecording = false;
   String address = "";
-  Position? _position;
-  int trafficIntesity = 0;
+  Position? position;
+  String? selectedDevice;
 
   // Controllers
   TextEditingController addressController = TextEditingController();
@@ -95,7 +98,13 @@ class _HomePageState extends State<HomePage> {
         ),
         body: Stack(
           children: [
-            durationBox(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                durationBox(),
+                if (kIsWeb) showInputDevices(),
+              ],
+            ),
             recordingIndicator(),
           ],
         ),
@@ -146,12 +155,12 @@ class _HomePageState extends State<HomePage> {
               fileName: _fileName,
               address: addressController.text,
               trafficIntensity: trafficIntesity,
-              position: _position);
+              position: position);
 
           recordingCompleter = Completer<void>();
           bottomSheetCompleter = Completer<void>();
 
-          log('The data has been sent $_fileName, ${addressController.text}, $trafficIntesity, $_position');
+          log('The data has been sent $_fileName, ${addressController.text}, $trafficIntesity, $position');
 
           // Reset the selected intensity after sending data.
           setState(() {
@@ -226,34 +235,31 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget durationBox() {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Container(
-        margin: const EdgeInsets.only(top: 20),
-        width: 110, // Set this to the width of your record icon
-        child: TextFormField(
-          initialValue: duration.toString(),
-          autofillHints: const ['10', '15', '30', '60'],
-          decoration: InputDecoration(
-            labelText: 'Duration',
-            hintText: 'Duration',
-            hintStyle: TextStyle(color: Colors.grey[400]),
-            border: OutlineInputBorder(
-              borderRadius: const BorderRadius.all(Radius.circular(
-                  20)), // This makes the TextField have rounded corners
-              borderSide: BorderSide(color: Colors.grey[100]!),
-            ),
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      width: 110, // Set this to the width of your record icon
+      child: TextFormField(
+        initialValue: duration.toString(),
+        autofillHints: const ['10', '15', '30', '60'],
+        decoration: InputDecoration(
+          labelText: 'Duration',
+          hintText: 'Duration',
+          hintStyle: TextStyle(color: Colors.grey[400]),
+          border: OutlineInputBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(
+                20)), // This makes the TextField have rounded corners
+            borderSide: BorderSide(color: Colors.grey[100]!),
           ),
-          style: TextStyle(color: Colors.grey[100]),
-          enabled: !_isRecording,
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            setState(() {
-              duration = value.isNotEmpty ? int.parse(value) : 0;
-              log('The duration is $duration');
-            });
-          },
         ),
+        style: TextStyle(color: Colors.grey[100]),
+        enabled: !_isRecording,
+        keyboardType: TextInputType.number,
+        onChanged: (value) {
+          setState(() {
+            duration = value.isNotEmpty ? int.parse(value) : 0;
+            log('The duration is $duration');
+          });
+        },
       ),
     );
   }
@@ -283,6 +289,69 @@ class _HomePageState extends State<HomePage> {
         Icons.stop,
         color: Colors.red,
       ),
+    );
+  }
+
+  Widget showInputDevices() {
+    return FutureBuilder<List<InputDevice>>(
+      future: recordController.getInputDevices(),
+      builder:
+          (BuildContext context, AsyncSnapshot<List<InputDevice>> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator(); // show a loading spinner while waiting
+        } else if (snapshot.hasError) {
+          return Text(
+              'Error: ${snapshot.error}'); // show an error message if something went wrong
+        } else {
+          List<String> devices =
+              snapshot.data!.map((device) => device.label).toList();
+
+          return Container(
+            width: 300,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[400]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                dropdownColor: Colors.grey[850],
+                borderRadius: BorderRadius.circular(10),
+                isExpanded: true,
+                value: selectedDevice,
+                hint: Text(
+                  'Select a device',
+                  style: TextStyle(color: Colors.grey[100]),
+                ),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedDevice = newValue;
+
+                    // Set the input device
+                    snapshot.data!
+                        .where((device) => device.label == newValue)
+                        .forEach((device) {
+                      // recordController.setInputDevice(device);
+                    });
+                  });
+
+                  // recordController.setInputDevice(newValue!);
+                },
+                items: devices.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value,
+                      style: TextStyle(color: Colors.grey[100]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -341,7 +410,7 @@ class _HomePageState extends State<HomePage> {
       isDismissible: true,
       builder: (context) {
         return MetadataForm(
-            position: _position,
+            position: position,
             address: address,
             setPatentState: (address, intensity) {
               setState(() {
@@ -367,7 +436,7 @@ class _HomePageState extends State<HomePage> {
       address = await loc.Location().getAddressFromLatLng(position!) ?? "";
     }
     setState(() {
-      _position = position;
+      this.position = position;
       this.address = address;
       addressController.text = address;
     });

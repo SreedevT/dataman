@@ -11,6 +11,7 @@ class RecordController {
   final record = AudioRecorder();
   final Directory directoryPath =
       Directory('/storage/emulated/0/Documents/dataman');
+  RecordConfig config = const RecordConfig(encoder: AudioEncoder.wav);
   String? name;
   String? unixTime;
 
@@ -43,16 +44,29 @@ class RecordController {
     });
   }
 
+  Future<List<InputDevice>> getInputDevices() async {
+    return await record.listInputDevices();
+  }
+
+  // void setInputDevice(InputDevice device) {
+
+  //   config = RecordConfig(encoder: AudioEncoder.wav, device: device);
+  // }
+
   void startRecording() async {
     // TODO: Maybe add support for multiple platforms or better compatibility in android
 
     if (await record.hasPermission()) {
       //Unit time in seconds
-      unixTime = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+      await record.listInputDevices().then((value) async {
+        unixTime = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+        log('Recording started with ${value[3].label}');
 
-      // Start recording to file
-      await record.start(const RecordConfig(encoder: AudioEncoder.wav),
-          path: '${directoryPath.path}/${unixTime}_$name.wav');
+        // Start recording to file
+        await record.start(
+            RecordConfig(encoder: AudioEncoder.wav, device: value[3]),
+            path: '${directoryPath.path}/${unixTime}_$name.wav');
+      });
     }
   }
 
@@ -62,7 +76,7 @@ class RecordController {
     if (kIsWeb) saveRecordingWeb(path);
 
     Fluttertoast.showToast(
-      msg: 'Recording is complete', // Todo Maybe add filename in msg
+      msg: 'Recording is complete',
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.SNACKBAR,
       backgroundColor: Colors.grey,
